@@ -1,0 +1,249 @@
+[
+  {
+    "id": "complete_input",
+    "file": "csv",
+    "questions": 0,
+    "turns": [
+      {
+        "action": {
+          "input": "$file",
+          "columns": {
+            "1": {
+              "name": "金额"
+            },
+            "2": {
+              "name": "含,逗号"
+            }
+          },
+          "methods": "spearman,kendall_tau_b",
+          "explicit": true
+        },
+        "step": "ready"
+      }
+    ],
+    "methods": [
+      "spearman",
+      "kendall_tau_b"
+    ]
+  },
+  {
+    "id": "missing_sheet",
+    "file": "xlsx",
+    "questions": 2,
+    "turns": [
+      {
+        "action": {
+          "input": "$file"
+        },
+        "step": "needs_sheet"
+      },
+      {
+        "action": {
+          "sheet": {
+            "index": 2
+          }
+        },
+        "step": "needs_columns"
+      },
+      {
+        "action": {
+          "pair": {
+            "x": {
+              "index": 1
+            },
+            "y": {
+              "index": 2
+            }
+          }
+        },
+        "step": "ready"
+      }
+    ],
+    "methods": [
+      "pearson",
+      "spearman",
+      "kendall_tau_b"
+    ]
+  },
+  {
+    "id": "missing_columns",
+    "file": "csv",
+    "questions": 1,
+    "turns": [
+      {
+        "action": {
+          "input": "$file"
+        },
+        "step": "needs_columns"
+      },
+      {
+        "action": {
+          "pair": {
+            "x": {
+              "index": 1
+            },
+            "y": {
+              "index": 2
+            }
+          }
+        },
+        "step": "ready"
+      }
+    ],
+    "methods": [
+      "pearson",
+      "spearman",
+      "kendall_tau_b"
+    ]
+  },
+  {
+    "id": "ambiguous_semantics",
+    "file": "csv",
+    "questions": 2,
+    "turns": [
+      {
+        "action": {
+          "input": "$file",
+          "columns": {
+            "1": {
+              "name": "等级",
+              "type": "ordinal"
+            },
+            "2": {
+              "name": "金额"
+            }
+          },
+          "explicit": true
+        },
+        "step": "needs_semantics",
+        "mode": "text"
+      },
+      {
+        "action": {
+          "columns": {
+            "1": {
+              "order": [
+                "低",
+                "中",
+                "高"
+              ]
+            }
+          }
+        },
+        "step": "needs_confirmation"
+      },
+      {
+        "action": {
+          "confirm": true
+        },
+        "step": "ready"
+      }
+    ],
+    "methods": [
+      "spearman",
+      "kendall_tau_b"
+    ]
+  },
+  {
+    "id": "no_question_tool",
+    "file": "csv",
+    "host": {
+      "questions": false
+    },
+    "questions": 1,
+    "turns": [
+      {
+        "action": {
+          "input": "$file"
+        },
+        "step": "needs_columns",
+        "mode": "text"
+      },
+      {
+        "action": {
+          "pair": {
+            "x": {
+              "index": 1
+            },
+            "y": {
+              "index": 2
+            }
+          }
+        },
+        "step": "ready"
+      }
+    ],
+    "methods": [
+      "pearson",
+      "spearman",
+      "kendall_tau_b"
+    ]
+  },
+  {
+    "id": "explicit_axes",
+    "file": "csv",
+    "questions": 0,
+    "turns": [
+      {
+        "action": {
+          "input": "$file",
+          "columns": {
+            "1": {
+              "index": 1
+            },
+            "2": {
+              "index": 2
+            }
+          },
+          "plot_x": "col2",
+          "explicit": true
+        },
+        "step": "ready"
+      }
+    ],
+    "methods": [
+      "pearson",
+      "spearman",
+      "kendall_tau_b"
+    ]
+  },
+  {
+    "id": "swap_axes",
+    "file": "csv",
+    "questions": 2,
+    "turns": [
+      {
+        "action": {
+          "input": "$file",
+          "columns": {
+            "1": {
+              "index": 1
+            },
+            "2": {
+              "index": 2
+            }
+          }
+        },
+        "step": "needs_confirmation"
+      },
+      {
+        "action": {
+          "plot_x": "col2",
+          "confirm": true
+        },
+        "step": "needs_confirmation"
+      },
+      {
+        "action": {
+          "confirm": true
+        },
+        "step": "ready"
+      }
+    ],
+    "methods": [
+      "pearson",
+      "spearman",
+      "kendall_tau_b"
+    ]
+  }
+]

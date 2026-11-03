@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>选择分析字段</title>
+<style>
+:root{font:15px/1.6 system-ui,"Microsoft YaHei",sans-serif;color:#243344;background:#f4f6f9;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;padding:40px 20px}main{max-width:900px;margin:auto;background:white;border:1px solid #e2e7ee;border-radius:16px;padding:32px;box-shadow:0 12px 36px #23334408}
+h1{font-size:24px;margin:0 0 4px}p{margin:8px 0;color:#607083}.context{overflow-wrap:anywhere;margin-bottom:28px}.pair{display:grid;grid-template-columns:minmax(0,1fr) 52px minmax(0,1fr);gap:16px;align-items:center;margin:24px 0}.field{min-width:0}label{display:block;font-weight:600;margin-bottom:8px}select,input{font:inherit;width:100%;min-width:0;border:1px solid #cbd4e0;border-radius:8px;padding:11px;background:white;color:inherit}input{margin-bottom:8px;padding:7px 11px}button{font:inherit;cursor:pointer;border:1px solid #cbd4e0;border-radius:8px;padding:10px 18px;background:white;color:inherit}button:disabled{cursor:default;opacity:.45}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #adc8ff;outline-offset:2px}#swap{width:52px;height:48px;padding:0;font-size:28px;margin-top:33px}#swap:hover:enabled{background:#edf3ff;border-color:#7da2e7}.status{min-height:28px;margin:12px 0;overflow-wrap:anywhere}#error{color:#b83d35}footer{display:flex;justify-content:flex-end;gap:12px;border-top:1px solid #edf0f4;padding-top:20px;margin-top:24px}#submit{background:#315fa8;color:white;border-color:#315fa8}.table-wrap{max-width:100%;overflow:auto;max-height:290px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;border-bottom:1px solid #edf0f4;padding:9px 12px;max-width:260px;overflow-wrap:anywhere}th{white-space:nowrap;background:#f8fafc}details{margin-top:16px}summary{cursor:pointer;color:#42618b}small{color:#607083}
+@media(max-width:560px){body{padding:16px 10px}main{padding:20px 14px}.pair{gap:8px;grid-template-columns:minmax(0,1fr) 38px minmax(0,1fr)}#swap{width:38px}h1{font-size:21px}select{padding:10px 5px}}
+</style>
+<main>
+  <h1>选择分析字段</h1>
+  <p class="context" id="context"></p>
+  <p>左侧为 X 轴，右侧为 Y 轴。点击中间箭头交换，然后开始分析。</p>
+  <form id="form">
+    <div class="pair">
+      <div class="field"><label for="x">X 轴字段</label><input id="search-x" type="search" placeholder="搜索字段" aria-label="搜索 X 轴字段"><select id="x" required aria-label="X 轴字段"></select></div>
+      <button id="swap" type="button" aria-label="交换 X 轴与 Y 轴字段" title="交换 X、Y 轴" disabled>→</button>
+      <div class="field"><label for="y">Y 轴字段</label><input id="search-y" type="search" placeholder="搜索字段" aria-label="搜索 Y 轴字段"><select id="y" required aria-label="Y 轴字段"></select></div>
+    </div>
+    <div class="status" id="direction" aria-live="polite">请选择两个不同字段</div>
+    <div id="error" role="alert"></div>
+    <details open><summary>字段预览</summary><p><small>显示所选字段的前 5 行。</small></p><div class="table-wrap"><table id="preview"></table></div></details>
+    <details><summary>查看全部字段与类型</summary><div class="table-wrap"><table id="catalog"></table></div></details>
+    <footer><button id="cancel" type="button">取消</button><button id="submit" type="submit" disabled>开始分析</button></footer>
+  </form>
+</main>
+<script type="application/json" id="data">__FIELD_DATA__</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('data').textContent),byId=new Map(data.columns.map(c=>[String(c.index),c]));
+const x=document.getElementById('x'),y=document.getElementById('y'),swap=document.getElementById('swap'),submit=document.getElementById('submit'),error=document.getElementById('error');
+let busy=false,done=false;
+document.getElementById('context').textContent=data.filename+(data.sheet?' · '+data.sheet.name:'')+' · '+data.preview.total_rows+' 行 · '+data.columns.length+' 个字段';
+function fill(select,search=''){
+  const selected=select.value;select.replaceChildren(new Option('请选择字段',''));
+  for(const c of data.columns){if(search&&!c.display_name.toLowerCase().includes(search.toLowerCase())&&String(c.index)!==selected)continue;
+    const option=new Option('#'+c.index+' '+c.display_name+(c.reason?'（'+c.reason+'）':''),String(c.index));option.disabled=!c.selectable;select.add(option);}
+  select.value=selected;
+}
+fill(x);fill(y);
+if(data.selected.every(Boolean)){
+  const slots=data.plot?[Number(data.plot.x.slot.slice(-1))-1,Number(data.plot.y.slot.slice(-1))-1]:[0,1];
+  x.value=String(data.selected[slots[0]].index);y.value=String(data.selected[slots[1]].index);
+}else if(data.selected[0])x.value=String(data.selected[0].index);else if(data.selected[1])y.value=String(data.selected[1].index);
+function row(table,values,header=false){const tr=table.insertRow();for(const value of values){const cell=document.createElement(header?'th':'td');cell.textContent=value??'—';tr.append(cell);}}
+const catalog=document.getElementById('catalog');row(catalog,['编号','字段','类型','说明'],true);
+for(const c of data.columns)row(catalog,['#'+c.index,c.display_name,c.type,c.reason||c.semantic_hint||'']);
+function update(){
+  if(done)return;
+  const a=byId.get(x.value),b=byId.get(y.value),valid=a&&b&&a.index!==b.index&&a.selectable&&b.selectable;
+  submit.disabled=busy||done||!valid;swap.disabled=busy||done||!a||!b;
+  document.getElementById('direction').textContent=a&&b?a.display_name+' → '+b.display_name+'（X → Y）':'请选择两个不同字段';
+  error.textContent=a&&b&&a.index===b.index?'X 轴与 Y 轴请选择不同字段。':'';
+  const table=document.getElementById('preview');table.replaceChildren();const selected=[a,b].filter(Boolean);
+  row(table,selected.map(c=>c.display_name),true);
+  for(const r of data.preview.rows)row(table,selected.map(c=>r[data.preview.columns.findIndex(p=>p.index===c.index)]));
+}
+x.addEventListener('change',update);y.addEventListener('change',update);
+for(const axis of ['x','y'])document.getElementById('search-'+axis).addEventListener('input',event=>{fill(document.getElementById(axis),event.target.value);update();});
+swap.addEventListener('click',()=>{const a=x.value,b=y.value;fill(x);fill(y);x.value=b;y.value=a;update();});
+function selector(value){const old=data.selected.find(c=>c&&String(c.index)===value);return {index:Number(value),...(old?{type:old.type,...(old.order?{order:old.order}:{})}:{})};}
+async function send(endpoint,body){
+  if(busy||done)return;
+  busy=true;update();x.disabled=true;y.disabled=true;document.getElementById('cancel').disabled=true;
+  try{const response=await fetch(new URL(endpoint,location.href),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result=await response.json();
+    if(!response.ok){error.textContent=result.error;return;}
+    done=true;document.getElementById('direction').textContent=result.cancelled?'已取消，尚未开始分析。':result.step==='ready'?'字段与方向已提交，请返回对话查看分析结果。':'字段与方向已提交，请返回对话补齐业务类型或顺序。';
+  }catch(e){error.textContent='连接已结束，请返回对话重新打开选择页。';}
+  finally{busy=false;const a=byId.get(x.value),b=byId.get(y.value);submit.disabled=done||!a||!b||a.index===b.index||!a.selectable||!b.selectable;swap.disabled=done||!a||!b;document.getElementById('cancel').disabled=done;x.disabled=done;y.disabled=done;for(const axis of ['x','y'])document.getElementById('search-'+axis).disabled=done;}
+}
+document.getElementById('form').addEventListener('submit',event=>{event.preventDefault();if(!submit.disabled)send('pair',{x:selector(x.value),y:selector(y.value)});});
+document.getElementById('cancel').addEventListener('click',()=>send('cancel',{}));update();
+</script>
+</html>

@@ -1,0 +1,9 @@
+{
+  "template": {"id": "data-relationship-report", "version": "1.4.1"},
+  "colors": {"background": "#F5F7FB", "surface": "#FFFFFF", "primary": "#2563EB", "text": "#1F2937", "muted": "#64748B", "border": "#E2E8F0", "amber": "#92400E", "amber_background": "#FFFBEB"},
+  "palette": ["#2563EB", "#0D9488", "#7C3AED", "#D97706", "#DB2777", "#475569", "#0891B2", "#9333EA"],
+  "font_family": "system-ui, -apple-system, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif",
+  "font_paths": ["C:/Windows/Fonts/msyh.ttc", "C:/Windows/Fonts/simhei.ttf", "/System/Library/Fonts/PingFang.ttc", "/usr/share/fonts/truetype/custom/msyh.ttc", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc"],
+  "layout": {"max_width": 1080, "space": 8, "radius": 12, "font_size": 16, "line_height": 1.8, "breakpoint": 640},
+  "chart": {"width": 1000, "height": 650}
+}

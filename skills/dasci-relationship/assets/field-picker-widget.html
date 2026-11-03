@@ -1,0 +1,86 @@
+<style>
+.field-picker{font:14px/1.5 system-ui,sans-serif;color:var(--color-text-primary,#233044);max-width:960px;margin:auto;padding:20px;border:1px solid var(--color-border-tertiary,#dce2e9);border-radius:14px;background:var(--color-background-primary,#fff)}
+.field-picker *{box-sizing:border-box}.field-picker h2{font-size:19px;margin:0 0 4px}.field-picker p{margin:6px 0 16px;color:var(--color-text-secondary,#657183)}
+.field-picker .axes{display:grid;grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);gap:12px;align-items:center}.field-picker label{display:block;font-weight:600;margin-bottom:8px}
+.field-picker input{width:100%;padding:9px 11px;margin-bottom:8px;border:1px solid #d2dae4;border-radius:8px;background:var(--color-background-primary,#fff);color:inherit;font:inherit}
+.field-picker .field-list{height:288px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--color-border-tertiary,#dce2e9);border-radius:8px;padding:4px}
+.field-picker button{font:inherit;cursor:pointer}.field-picker .field{display:block;width:100%;text-align:left;padding:9px 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:inherit;overflow-wrap:anywhere}
+.field-picker .field:hover{background:var(--color-background-secondary,#f2f5f9)}.field-picker .field[aria-pressed=true]{border-color:#5477bd;background:var(--color-background-info,#edf3ff)}
+.field-picker .field:disabled{cursor:default;opacity:.55}.field-picker small{display:block;font-weight:400;color:var(--color-text-secondary,#657183)}.field-picker .count{margin:6px 0 0;font-size:12px}
+.field-picker #swap{width:44px;height:40px;border:1px solid #d2dae4;border-radius:8px;background:var(--color-background-primary,#fff);color:inherit;font-size:22px}
+.field-picker .selection{min-height:26px;margin:16px 0 8px;overflow-wrap:anywhere}.field-picker .status{color:var(--color-text-secondary,#657183);min-height:22px;margin-bottom:12px}
+.field-picker .actions{display:flex;gap:10px;justify-content:flex-end}.field-picker .actions button{border:1px solid #d2dae4;border-radius:8px;padding:8px 18px;background:var(--color-background-primary,#fff);color:inherit}
+.field-picker .actions #submit{background:#365f9d;color:#fff;border-color:#365f9d}.field-picker button:disabled{opacity:.45;cursor:default}.field-picker button:focus-visible{outline:2px solid #5477bd;outline-offset:1px}
+@media(max-width:480px){.field-picker{padding:12px}.field-picker .axes{gap:6px;grid-template-columns:minmax(0,1fr) 32px minmax(0,1fr)}.field-picker #swap{width:32px}.field-picker .field{padding:8px 5px}}
+</style>
+<section class="field-picker" aria-label="选择分析字段">
+  <h2>选择两个分析字段</h2>
+  <p>左侧为 X 轴，右侧为 Y 轴。可搜索或向下滚动查看全部字段。</p>
+  <div id="controls">
+    <div class="axes">
+      <div><label for="search-x">X 轴字段</label><input id="search-x" type="search" placeholder="搜索名称或编号" autocomplete="off"><div id="x" class="field-list" role="group" aria-label="X 轴全部字段"></div><p id="count-x" class="count"></p></div>
+      <button id="swap" type="button" title="交换 X/Y 字段" aria-label="交换 X/Y 字段" disabled>⇄</button>
+      <div><label for="search-y">Y 轴字段</label><input id="search-y" type="search" placeholder="搜索名称或编号" autocomplete="off"><div id="y" class="field-list" role="group" aria-label="Y 轴全部字段"></div><p id="count-y" class="count"></p></div>
+    </div>
+    <div id="direction" class="selection" aria-live="polite"></div>
+    <div id="status" class="status" role="status"></div>
+    <div class="actions"><button id="cancel" type="button">取消</button><button id="submit" type="button" disabled>开始分析</button></div>
+  </div>
+</section>
+<script type="application/json" id="field-data">__FIELD_DATA__</script>
+<script>
+(() => {
+  const model = JSON.parse(document.getElementById('field-data').textContent);
+  const el = id => document.getElementById(id);
+  const kinds = {numeric:'数值',categorical:'分类',ordinal:'有序分类',datetime:'日期时间',boolean:'布尔',id:'标识符',empty:'空列',text:'文本'};
+  const chosen = {x:null,y:null};
+  let finished = false;
+  const label = field => '#' + field.index + ' ' + field.name;
+  function update() {
+    const both = chosen.x && chosen.y;
+    const valid = both && chosen.x.index !== chosen.y.index;
+    el('submit').disabled = finished || !valid;
+    el('swap').disabled = finished || !both;
+    el('direction').textContent = (chosen.x ? label(chosen.x) : '待选 X') + ' → ' + (chosen.y ? label(chosen.y) : '待选 Y');
+    el('status').textContent = both && !valid ? '请选择两个不同的字段。' : model.detail || '';
+  }
+  function draw(axis) {
+    const search = el('search-' + axis).value.trim().toLocaleLowerCase();
+    const fields = model.fields.filter(field => !search || label(field).toLocaleLowerCase().includes(search));
+    const buttons = fields.map(field => {
+      const button = document.createElement('button');
+      button.type = 'button';button.className = 'field';
+      button.disabled = finished || !field.selectable;
+      button.setAttribute('aria-pressed', String(chosen[axis]?.index === field.index));
+      const name = document.createElement('span');name.textContent = label(field);
+      const hint = document.createElement('small');
+      hint.textContent = (kinds[field.kind] || field.kind) + (field.reason ? ' · ' + field.reason : '');
+      button.append(name,hint);
+      button.addEventListener('click', () => {chosen[axis] = field;draw(axis);update();});
+      return button;
+    });
+    el(axis).replaceChildren(...buttons);
+    el('count-' + axis).textContent = '显示 ' + fields.length + ' / ' + model.fields.length + ' 个字段';
+  }
+  for (const axis of ['x','y']) {
+    el('search-' + axis).addEventListener('input', () => draw(axis));draw(axis);
+  }
+  el('swap').addEventListener('click', () => {
+    [chosen.x,chosen.y] = [chosen.y,chosen.x];
+    el('search-x').value = '';el('search-y').value = '';
+    draw('x');draw('y');update();
+  });
+  function lock(message) {
+    finished = true;draw('x');draw('y');
+    for (const id of ['submit','swap','cancel','search-x','search-y']) el(id).disabled = true;
+    el('status').textContent = message;
+  }
+  el('submit').addEventListener('click', () => {
+    if (finished || !chosen.x || !chosen.y || chosen.x.index === chosen.y.index) return;
+    sendPrompt(JSON.stringify({pair:{x:{index:chosen.x.index},y:{index:chosen.y.index}},context_key:model.context_key}));
+    lock('已提交，正在继续分析。');
+  });
+  el('cancel').addEventListener('click', () => lock('已取消，未开始分析。'));
+  update();
+})();
+</script>
